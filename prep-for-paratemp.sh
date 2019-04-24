@@ -4,7 +4,7 @@
 set -e
 
 # For Python / conda
-module load anaconda3
+module load anaconda3/5.2.0
 # For openbabel (file conversions)
 module load wxwidgets/3.0.2
 module load openbabel/2.4.1
@@ -22,18 +22,21 @@ $0 usage:
     (no arguments)  load all necessary modules and conda environment and then
                     exit
 
-    -i          --install       use this argument to create a new 'paratemp' conda environment
-                                and install needed packages and dependencies
+    -i          --install       use this argument to create a new 'paratemp'
+                                conda environment and install needed packages
+                                and dependencies
     -s          --start         use this command to start jupyter lab
     -p port     --port port     use this port for Jupyter on SCC
-                                If not given, it will ask for a port or a random one will be
-                                generated. It must be in the range 1024-65535 (and likely not
-                                a common number that someone else might pick).
+                                If not given, it will ask for a port or a random
+                                one will be generated. It must be in the
+                                range 1024-65535 (and likely not a common
+                                number that someone else might pick).
 
-    -d          --dryrun        use this command to tell conda to not actually install packages
-                                (useful for testing only)
-                                (also, NOT gauranteed to NOT install anything. Aka, be careful 
-                                and don't just assume it'll be fine).
+    -d          --dryrun        use this command to tell conda to not actually
+                                install packages (useful for testing only)
+                                (also, NOT guaranteed to NOT install anything.
+                                Aka, be careful and don't just assume it'll
+                                be fine).
 END
 )
 
@@ -68,7 +71,7 @@ while (( "$#" )); do
             elif (( "$PORT" < 1024 )) || (( "$PORT" > 65535 )); then
                 echo port must be between 1024 and 65535. Given: "$PORT" && exit 1;
             fi
-
+            ;;
         *)
             echo Unrecognized argument: $1
             echo "$USAGE"
@@ -77,39 +80,41 @@ while (( "$#" )); do
     esac; shift;
 done
 
-if [ $SETUP = TRUE ]; then
+if [[ $SETUP = TRUE ]]; then
     # Make directory for installed files
     PT_DIR=".paratemp_install"
-    if [ -d $PT_DIR ]; then
-        cd $PT_DIR
+    if [[ -d ${PT_DIR} ]]; then
+        cd ${PT_DIR}
     else
-        mkdir $PT_DIR
-        cd $PT_DIR
+        mkdir ${PT_DIR}
+        cd ${PT_DIR}
     fi
     # Get ParaTemp from GitHub
-    if [ -d ParaTemp ]; then
+    if [[ -d ParaTemp ]]; then
         echo ParaTemp already downloaded
     else
         git clone https://github.com/theavey/ParaTemp.git
     fi
-    # Create conda environment, install dependencies, activate the enviroment
-    if [ -d ~/.conda/envs/paratemp ]; then
+    # Create conda environment, install dependencies, activate the environment
+    if [[ -d ~/.conda/envs/paratemp ]]; then
         echo paratemp conda environment already exists
     else
-        conda create $DRY --yes -n paratemp -c conda-forge "python>=3.6" jupyterlab "blas=*=openblas" "pip>=18"
+        conda create ${DRY} --yes -n paratemp -c conda-forge "python>=3.6" \
+        jupyterlab "blas=*=openblas" "pip>=18"
     fi
     source activate paratemp
     # Currently need latest gromacswrapper (until 0.8+)
-    if [ -d GromacsWrapper ]; then
+    if [[ -d GromacsWrapper ]]; then
         echo GromacsWrapper already installed
     else
         git clone https://github.com/Becksteinlab/GromacsWrapper.git
         cd GromacsWrapper
         pip install .
         cd ..
+    fi
     pip install gromacswrapper acpype
     conda install --yes -c conda-forge --file ParaTemp/requirements.txt
-    conda install $DRY --yes -c omnia parmed
+    conda install ${DRY} --yes -c omnia parmed
     # Install ParaTemp
     cd ParaTemp
     pip install -e .
@@ -121,17 +126,17 @@ if [ $SETUP = TRUE ]; then
     if [[ "$PORT" == NONE ]]; then
         echo What port should be used on SCC for Jupyter? '(Hit Enter for random port)'
         read PORT
-        if [ -z $PORT ]; then
+        if [[ -z ${PORT} ]]; then
             PORT=$(awk 'BEGIN{srand();print int(rand()*(63000-2000))+2000 }')
         fi
     fi
-    echo Using port $PORT
+    echo Using port ${PORT}
     SSH_CONFIG_LINES=$(cat <<-END
 	Host scc2 2 scc
-	    User $USER
+	    User ${USER}
 	    HostName scc2.bu.edu
 	    Port 22
-	    LocalForward 11111 localhost:$PORT
+	    LocalForward 11111 localhost:${PORT}
 	    ForwardX11 yes
 	END
 	)
@@ -144,10 +149,10 @@ if [ $SETUP = TRUE ]; then
 	else:
 	    config = dict()
 	notebookapp = config.get('NotebookApp', dict())
-	notebookapp['port'] = $PORT
+	notebookapp['port'] = ${PORT}
 	notebookapp['open_browser'] = False
 	config['NotebookApp'] = notebookapp
-	if '$DRY':
+	if '${DRY}':
 	    print(f'jupyter_config.json would be {config}')
 	else:
 	    json.dump(config, path.open('w'), indent=2)
@@ -168,7 +173,7 @@ if [ $SETUP = TRUE ]; then
 	    if 'append_suffix' in line:
 	        line = 'append_suffix = no'
 	    out_lines.append(line)
-	if '$DRY':
+	if '${DRY}':
 	    print(f'.gromacswrapper.cfg would be {"\\n".join(out_lines)}')
 	else:
 	    path.write_text('\\n'.join(out_lines))
@@ -210,7 +215,7 @@ else
     source activate paratemp
 fi
 
-if [ $START = TRUE ]; then
+if [[ ${START} = TRUE ]]; then
     # Thought about trying automated port forwarding. Don't think it's
     # possible.
     # read -r -a ip_array <<< $SSH_CLIENT
