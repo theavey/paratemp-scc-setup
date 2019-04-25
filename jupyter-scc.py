@@ -20,6 +20,9 @@ Setup and run Jupyter (for ParaTemp) on SCC from a local machine
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+from __future__ import print_function, division
+
+import argparse
 import getpass
 import json
 import logging
@@ -85,4 +88,9 @@ class Config(dict):
 
 
 if __name__ == '__main__':
-    _setup_log()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-l', '--log_level', default=30,
+                        help='Level to write to log (smaller number writes '
+                             'more)')
+    args = parser.parse_args()
+    _setup_log(args.log_level)
