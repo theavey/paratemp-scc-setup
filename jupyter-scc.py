@@ -171,7 +171,9 @@ if __name__ == '__main__':
                              'default is to read the setting in the config '
                              'file (which defaults to scc2.bu.edu).')
     parser.add_argument('-u', '--username', default='read_config',
-                        # TODO write help
+                        help='What username to use for SCC. Default is to '
+                             'read config file (which defaults to username on '
+                             'this local computer)'
                         )
     parser.add_argument('-l', '--log_level', default=30,
                         help='Level to write to log (smaller number writes '
