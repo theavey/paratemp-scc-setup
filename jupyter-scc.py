@@ -79,6 +79,7 @@ class Config(dict):
             username = default_username
         self['username'] = username
         self['Setup_on_SCC'] = False
+        self['server'] = 'scc2.bu.edu'
 
     def __setitem__(self, key, value):
         try:
@@ -161,12 +162,62 @@ def forward_tunnel(local_port, remote_host, remote_port, transport):
 
 #
 #
-# End of taken from paramiko forward.py demo
+# End of main part taken from paramiko forward.py demo
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    parser.add_argument('-s', '--server', default='read_config',
+                        help='Which server to use (e.g., scc2.bu.edu). The '
+                             'default is to read the setting in the config '
+                             'file (which defaults to scc2.bu.edu).')
+    parser.add_argument('-u', '--username', default='read_config',
+                        # TODO write help
+                        )
     parser.add_argument('-l', '--log_level', default=30,
                         help='Level to write to log (smaller number writes '
                              'more)')
     args = parser.parse_args()
     _setup_log(args.log_level)
+
+    config = Config()
+    if args.server is not 'read_config':
+        config['server'] = args.server
+
+    client = paramiko.SSHClient()
+    client.load_system_host_keys()
+
+    password = getpass.getpass("Enter password for {} on {}: ".format(
+        config['username'], config['server']))
+
+    log.info("Connecting to ssh host {} ...".format(config['server']))
+    try:
+        client.connect(
+            config['server'],
+            port=22,
+            username=config['username'],
+            password=password,
+        )
+    except Exception as e:
+        log.fatal("*** Failed to connect to {}: {}".format(config['server'], e))
+        sys.exit(1)
+    finally:
+        del password
+
+    # TODO run setup if necessary
+    # TODO start jupyter
+    # TODO find port
+    remote_port = None
+    # TODO find token
+
+    log.info("Now forwarding port {} to {}:{}".format(
+        11111, config['server'], remote_port))
+
+    try:
+        # TODO thread/background this?
+        forward_tunnel(11111, 'localhost', remote_port, client.get_transport()
+                      )
+        # TODO create local URL
+        # TODO print or launch browser
+    except KeyboardInterrupt:
+        log.warning("C-c: Port forwarding stopped.")
+        sys.exit(0)
