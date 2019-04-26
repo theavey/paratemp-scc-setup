@@ -32,6 +32,8 @@ module load gromacs/2016.3
 # Versioneer fails for old versions of git
 module load git
 
+START_DIR=$(pwd)
+
 # process command line args
 USAGE=$(cat <<-END
 $0 usage:
@@ -47,6 +49,10 @@ $0 usage:
                                 one will be generated. It must be in the
                                 range 1024-65535 (and likely not a common
                                 number that someone else might pick).
+    -n          --noninteractive    Run this script noninteractively (this
+                                should mostly be used programmatically such
+                                that some of the steps don't need to be done
+                                manually)
 
     -d          --dryrun        use this command to tell conda to not actually
                                 install packages (useful for testing only)
@@ -61,6 +67,7 @@ SETUP=FALSE
 DRY=""
 START=FALSE
 PORT=NONE
+NONINTER=FALSE
 
 
 while (( "$#" )); do
@@ -69,10 +76,6 @@ while (( "$#" )); do
         -i | --install )
             # Setup conda environment and install
             SETUP=TRUE
-            ;;
-        -d | --dry-run | --dryrun )
-            # Don't actually install with conda
-            DRY="--dry-run"
             ;;
         -s | --start | --start-jupyter )
             # Start jupyter lab
@@ -88,6 +91,14 @@ while (( "$#" )); do
                 echo port must be between 1024 and 65535. Given: "$PORT" && exit 1;
             fi
             ;;
+        -n | --noninteractive )
+            # Run non-interactively
+            NONINTER=TRUE
+            ;;
+        -d | --dry-run | --dryrun )
+            # Don't actually install with conda
+            DRY="--dry-run"
+            ;;
         *)
             echo Unrecognized argument: $1
             echo "$USAGE"
@@ -98,11 +109,11 @@ done
 
 if [[ $SETUP = TRUE ]]; then
     # Make directory for installed files
-    PT_DIR=".paratemp_install"
+    PT_DIR=".paratemp/install"
     if [[ -d ${PT_DIR} ]]; then
         cd ${PT_DIR}
     else
-        mkdir ${PT_DIR}
+        mkdir -p ${PT_DIR}
         cd ${PT_DIR}
     fi
     # Get ParaTemp from GitHub
@@ -135,16 +146,18 @@ if [[ $SETUP = TRUE ]]; then
     cd ParaTemp
     pip install -e .
     cd ..
+    # Go back to starting dir:
+    cd ${START_DIR}
 
     # Setup for Jupyter
 
     jupyter lab --generate-config
-    if [[ "$PORT" == NONE ]]; then
+    if [[ ${PORT} == NONE ]] && [[ ${NONINTER} == FALSE ]]; then
         echo What port should be used on SCC for Jupyter? '(Hit Enter for random port)'
         read PORT
-        if [[ -z ${PORT} ]]; then
+    fi
+    if [[ -z ${PORT} ]] || [[ ${PORT} == NONE ]]; then
             PORT=$(awk 'BEGIN{srand();print int(rand()*(63000-2000))+2000 }')
-        fi
     fi
     echo Using port ${PORT}
     SSH_CONFIG_LINES=$(cat <<-END
@@ -197,36 +210,38 @@ if [[ $SETUP = TRUE ]]; then
 	)
     python -c "$SETUP_GROMACSWRAPPER"
 
-    # Setup port forwarding
+    if [[ ${NONINTER} == FALSE ]]; then
+        # Setup port forwarding
 
-    echo
-    echo Almost done with all setup. Just four more steps to go before you 
-    echo be up and running with Jupyter!
-    echo First, on your local computer \(Not SCC\), you will need to edit a
-    echo file. Either open up another terminal window \(or XQuartz, XTerm, 
-    echo etc.\), or log out then make these changes.
-    echo Open the file .ssh/config with your favorite editor \(or nano if you
-    echo do not have one\). For example type \(followed by enter\)
-    echo "      nano ~/.ssh/config"
-    echo Then copy and paste the following text into that file:
-    echo 
-    echo "$SSH_CONFIG_LINES"
-    echo
-    echo Save the file and exit.
-    echo Second, once that is done, you can log back in to scc just by typing
-    echo "      ssh scc"
-    echo followed by your password.
-    echo Third, once you have logged back in to scc, run this script 
-    echo again with '`-s`'
-    echo "      $0 -s"
-    echo Fourth and finally, in a web browser, go to
-    echo "      https://localhost:11111"
-    echo You will likely be required to copy and paste a long string of random 
-    echo letters and numbers that will be shown in your window into the Jupyter
-    echo login window.
-    echo \(This can be avoided in the future by creating a password. Ask if 
-    echo interested in this option.\)
-    exit
+        echo
+        echo Almost done with all setup. Just four more steps to go before you
+        echo be up and running with Jupyter!
+        echo First, on your local computer \(Not SCC\), you will need to edit a
+        echo file. Either open up another terminal window \(or XQuartz, XTerm,
+        echo etc.\), or log out then make these changes.
+        echo Open the file .ssh/config with your favorite editor \(or nano if you
+        echo do not have one\). For example type \(followed by enter\)
+        echo "      nano ~/.ssh/config"
+        echo Then copy and paste the following text into that file:
+        echo
+        echo "$SSH_CONFIG_LINES"
+        echo
+        echo Save the file and exit.
+        echo Second, once that is done, you can log back in to scc just by typing
+        echo "      ssh scc"
+        echo followed by your password.
+        echo Third, once you have logged back in to scc, run this script
+        echo again with '`-s`'
+        echo "      $0 -s"
+        echo Fourth and finally, in a web browser, go to
+        echo "      https://localhost:11111"
+        echo You will likely be required to copy and paste a long string of random
+        echo letters and numbers that will be shown in your window into the Jupyter
+        echo login window.
+        echo \(This can be avoided in the future by creating a password. Ask if
+        echo interested in this option.\)
+        exit
+    fi
 else
     source activate paratemp
 fi
