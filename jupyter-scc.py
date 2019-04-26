@@ -67,6 +67,7 @@ class Config(dict):
             super(Config, self).__init__(d)
         else:
             log.debug('No existing config found. Creating new')
+            self.path.parent.mkdir(parents=True, exist_ok=True)
             super(Config, self).__init__()
             self.setup_config()
             log.info('Wrote new config to {}'.format(self.path))
@@ -217,7 +218,7 @@ if __name__ == '__main__':
     try:
         # TODO thread/background this?
         forward_tunnel(11111, 'localhost', remote_port, client.get_transport()
-                      )
+                       )
         # TODO create local URL
         # TODO print or launch browser
     except KeyboardInterrupt:
