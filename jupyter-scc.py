@@ -176,7 +176,7 @@ if __name__ == '__main__':
                              'read config file (which defaults to username on '
                              'this local computer)'
                         )
-    parser.add_argument('-l', '--log_level', default=30,
+    parser.add_argument('-l', '--log_level', default=30, type=int,
                         help='Level to write to log (smaller number writes '
                              'more)')
     args = parser.parse_args()
