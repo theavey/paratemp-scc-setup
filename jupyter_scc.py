@@ -165,7 +165,28 @@ def forward_tunnel(local_port, remote_host, remote_port, transport):
 #
 # End of main part taken from paramiko forward.py demo
 
-if __name__ == '__main__':
+def ssh_connect():
+    _client = paramiko.SSHClient()
+    _client.load_system_host_keys()
+    password = getpass.getpass("Enter password for {} on {}: ".format(
+        config['username'], config['server']))
+    log.info("Connecting to ssh host {} ...".format(config['server']))
+    try:
+        _client.connect(
+            config['server'],
+            port=22,
+            username=config['username'],
+            password=password,
+        )
+    except Exception as e:
+        log.fatal("*** Failed to connect to {}: {}".format(config['server'], e))
+        sys.exit(1)
+    finally:
+        del password
+    return _client
+
+
+def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', '--server', default='read_config',
                         help='Which server to use (e.g., scc2.bu.edu). The '
@@ -179,35 +200,46 @@ if __name__ == '__main__':
     parser.add_argument('-l', '--log_level', default=30, type=int,
                         help='Level to write to log (smaller number writes '
                              'more)')
-    args = parser.parse_args()
+    return parser.parse_args()
+
+
+def scc_setup():
+    log.debug('Downloading SCC setup script to ~/.paratemp on SCC')
+    scc_script_url = ('https://raw.githubusercontent.com/theavey/'
+                      'paratemp-scc-setup/master/prep-for-paratemp.sh')
+    client.exec_command('mkdir -p .paratemp')
+    client.exec_command('wget {} -O {}'.format(scc_script_url,
+                                               scc_script_path))
+    client.exec_command('chmod +x {}'.format(scc_script_path))
+    stdin, stdout, stderr = client.exec_command(
+        './{} help'.format(scc_script_path))
+    # './{} -i -n'.format(scc_script_path))
+    log.debug('paratemp setup script said: {}\nerror message(s): {}'.format(
+        stdout.read(), stderr.read()))
+    config['Setup_on_SCC'] = True
+
+
+if __name__ == '__main__':
+    args = parse_args()
+
     _setup_log(args.log_level)
 
     config = Config()
     if args.server is not 'read_config':
         config['server'] = args.server
 
-    client = paramiko.SSHClient()
-    client.load_system_host_keys()
+    client = ssh_connect()
 
-    password = getpass.getpass("Enter password for {} on {}: ".format(
-        config['username'], config['server']))
+    scc_script_path = '.paratemp/prep-for-paratemp.sh'
 
-    log.info("Connecting to ssh host {} ...".format(config['server']))
-    try:
-        client.connect(
-            config['server'],
-            port=22,
-            username=config['username'],
-            password=password,
-        )
-    except Exception as e:
-        log.fatal("*** Failed to connect to {}: {}".format(config['server'], e))
-        sys.exit(1)
-    finally:
-        del password
+    if not config['Setup_on_SCC']:
+        scc_setup()
 
-    # TODO run setup if necessary
-    # TODO start jupyter
+    stdin, stdout, stderr = client.exec_command(
+        './{} -s'.format(scc_script_path))
+
+    jupyter_lines = stdout.readlines()
+
     # TODO find port
     remote_port = None
     # TODO find token
