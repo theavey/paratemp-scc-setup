@@ -1,4 +1,4 @@
-#! /bin/bash
+#! /bin/bash -l
 
 # Setup and run Jupyter for ParaTemp on SCC
 
