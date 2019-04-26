@@ -206,6 +206,11 @@ if __name__ == '__main__':
     finally:
         del password
 
+    stdin, stdout, stderr = client.exec_command('ls')
+    print(f'stdin: {stdin}')
+    print(f'stdout: {stdout}')
+    print(f'stderr: {stderr}')
+
     # TODO run setup if necessary
     # TODO start jupyter
     # TODO find port
