@@ -27,11 +27,13 @@ import getpass
 import json
 import logging
 import pathlib
+import re
 import select
 import socket
 import socketserver
 import subprocess
 import sys
+import time
 
 try:
     import paramiko
@@ -203,17 +205,24 @@ def parse_args():
     return parser.parse_args()
 
 
-def scc_setup():
+class ChannelClosed(Exception):
+    pass
+
+
+def scc_setup(dry=False):
     log.debug('Downloading SCC setup script to ~/.paratemp on SCC')
     scc_script_url = ('https://raw.githubusercontent.com/theavey/'
                       'paratemp-scc-setup/master/prep-for-paratemp.sh')
     client.exec_command('mkdir -p .paratemp')
-    client.exec_command('wget {} -O {}'.format(scc_script_url,
-                                               scc_script_path))
+    _stdout = client.exec_command('wget {} -O {}'.format(scc_script_url,
+                                                         scc_script_path))[1]
+    _stdout.channel.recv_exit_status()
     client.exec_command('chmod +x {}'.format(scc_script_path))
-    stdin, stdout, stderr = client.exec_command(
-        './{} help'.format(scc_script_path))
-    # './{} -i -n'.format(scc_script_path))
+    if dry:
+        cl = './{} help'.format(scc_script_path)
+    else:
+        cl = './{} -i -n'.format(scc_script_path)
+    stdin, stdout, stderr = client.exec_command(cl)
     log.debug('paratemp setup script said: {}\nerror message(s): {}'.format(
         stdout.read(), stderr.read()))
     config['Setup_on_SCC'] = True
@@ -233,12 +242,53 @@ if __name__ == '__main__':
     scc_script_path = '.paratemp/prep-for-paratemp.sh'
 
     if not config['Setup_on_SCC']:
-        scc_setup()
+        scc_setup(dry=True)
 
+    log.info('Starting jupyter on {}'.format(config['server']))
     stdin, stdout, stderr = client.exec_command(
-        './{} -s'.format(scc_script_path))
-
-    jupyter_lines = stdout.readlines()
+        './{} -s'.format(scc_script_path),
+        bufsize=8192,
+        timeout=2)
+    # print(f'type stdout: {type(stdout)}')
+    # print(f'stdout: {stdout.read()}')
+    # stdin, stdout, stderr = client.exec_command(
+    #     'echo first ; sleep 10; echo second stderr 1>&2',
+    #     timeout=2)
+    m = None
+    try:
+        while not m:
+            data = None
+            try:
+                log.debug('checking for new stderr...')
+                data = stderr.read()
+            except socket.timeout:
+                pass
+            if data is not None:
+                log.debug('stderr: {}'.format(data))
+            try:
+                log.debug('checking for new data...')
+                data = stdout.read(128)
+                log.debug(data)
+            except socket.timeout:
+                pass
+            if data is not None and len(data) == 0:
+                raise ChannelClosed
+            data = str(data)
+            for line in data.split('\n'):
+                m = re.search(r'https?://.*?:(\d+)/(?:\?token=(\w+))?', line)
+                if m is not None:
+                    break
+    except ChannelClosed:
+        log.error('Channel closed before finding Jupyter port. '
+                  'stdout: {}\nstderr: '
+                  '{}'.format(stdout.read(), stderr.read()))
+        sys.exit(1)
+    except KeyboardInterrupt:
+        log.error('KeyboardInterrupt while finding Jupyter port. stderr: '
+                  '{}'.format(stderr.read()))
+        sys.exit(1)
+    print(f'port: {m.group(1)}   token: {m.group(2)}')
+    # print(f'stderr: {stderr.read()}')
 
     # TODO find port
     remote_port = None
