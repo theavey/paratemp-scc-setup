@@ -253,7 +253,8 @@ if [[ ${START} = TRUE ]]; then
     # client_ip=${ip_array[0]}
 
     # Start Jupyter and wait for it to finish
-    jupyter lab
+    echo Starting Jupyter lab...
+    jupyter lab 1>&1 2>&2
 fi
 
 exit
