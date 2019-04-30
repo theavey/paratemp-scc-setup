@@ -1,4 +1,4 @@
-#! /usr/bin/env python3
+#! /usr/bin/env python
 
 """
 Setup and run Jupyter (for ParaTemp) on SCC from a local machine
@@ -26,14 +26,19 @@ import argparse
 import getpass
 import json
 import logging
-import pathlib
+try:
+    import pathlib
+except ImportError:
+    import pathlib2 as pathlib
 import re
 import select
 import socket
-import socketserver
+try:
+    import socketserver
+except ImportError:
+    import SocketServer as socketserver
 import subprocess
 import sys
-import time
 
 try:
     import paramiko
