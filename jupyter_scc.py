@@ -283,6 +283,7 @@ def main():
         https = 'http' if https is None else 'https'
         token = '' if token is None else '?token={}'.format(token)
         local_url = '{}://localhost:11111/{}'.format(https, token)
+        log.info('local url to access jupyter: {}'.format(local_url))
         # TODO thread/background this?
         forward_tunnel(11111, 'localhost', remote_port, client.get_transport()
                        )
