@@ -222,28 +222,23 @@ def scc_setup(dry=False):
         cl = './{} help'.format(scc_script_path)
     else:
         cl = './{} -i -n'.format(scc_script_path)
-    stdin, stdout, stderr = client.exec_command(cl)
+    _stdin, _stdout, _stderr = client.exec_command(cl)
     log.debug('paratemp setup script said: {}\nerror message(s): {}'.format(
-        stdout.read(), stderr.read()))
+        _stdout.read(), _stderr.read()))
     config['Setup_on_SCC'] = True
 
 
-if __name__ == '__main__':
+def main():
+    global config, client, scc_script_path
     args = parse_args()
-
     _setup_log(args.log_level)
-
     config = Config()
     if args.server is not 'read_config':
         config['server'] = args.server
-
     client = ssh_connect()
-
     scc_script_path = '.paratemp/prep-for-paratemp.sh'
-
     if not config['Setup_on_SCC']:
         scc_setup(dry=False)
-
     log.info('Starting jupyter on {}'.format(config['server']))
     stdin, stdout, stderr = client.exec_command(
         './{} -s'.format(scc_script_path),
@@ -252,7 +247,6 @@ if __name__ == '__main__':
     m = None
     try:
         while not m:
-            data = None
             try:
                 log.debug('checking for new stdout...')
                 data = stdout.readline()
@@ -260,7 +254,7 @@ if __name__ == '__main__':
                 continue
             if data is not None:
                 log.debug('stdout: {}'.format(data))
-            if data is not None and len(data) == 0:
+            if len(data) == 0:
                 raise ChannelClosed
             data = str(data)
             for line in data.split('\n'):
@@ -279,14 +273,11 @@ if __name__ == '__main__':
         sys.exit(1)
     log.info('found jupyter server info: port: {}   token: {}'.format(
         m.group(2), m.group(2)))
-
     https = m.group(1)
     remote_port = int(m.group(2))
     token = m.group(3)
-
     log.info("Now forwarding port {} to {}:{}".format(
         11111, config['server'], remote_port))
-
     try:
         https = 'http' if https is None else 'https'
         token = '' if token is None else '?token={}'.format(token)
@@ -299,3 +290,7 @@ if __name__ == '__main__':
         client.close()
         log.warning("C-c: Port forwarding stopped.")
         sys.exit(0)
+
+
+if __name__ == '__main__':
+    main()
