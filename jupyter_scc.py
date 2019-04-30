@@ -216,8 +216,9 @@ def scc_setup(dry=False):
     client.exec_command('mkdir -p .paratemp')
     _stdout = client.exec_command('wget {} -O {}'.format(scc_script_url,
                                                          scc_script_path))[1]
-    _stdout.channel.recv_exit_status()
-    client.exec_command('chmod +x {}'.format(scc_script_path))
+    _stdout.channel.recv_exit_status()  # wait for it to finish
+    _stdout = client.exec_command('chmod +x {}'.format(scc_script_path))[1]
+    _stdout.channel.recv_exit_status()  # wait for it to finish
     if dry:
         cl = './{} help'.format(scc_script_path)
     else:
