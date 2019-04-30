@@ -32,6 +32,7 @@ except ImportError:
     import pathlib2 as pathlib
 import re
 import select
+import signal
 import socket
 try:
     import socketserver
@@ -39,6 +40,7 @@ except ImportError:
     import SocketServer as socketserver
 import subprocess
 import sys
+import threading
 import webbrowser
 
 try:
@@ -285,17 +287,19 @@ def main():
     remote_port = int(m.group(2))
     token = m.group(3)
     try:
+        log.info("Now forwarding port {} to {}:{}".format(
+            11111, config['server'], remote_port))
+        thread = threading.Thread(target=forward_tunnel,
+                                  args=(11111, 'localhost', remote_port,
+                                        client.get_transport()))
+        thread.start()
         https = 'http' if https is None else 'https'
         token = '' if token is None else '?token={}'.format(token)
         local_url = '{}://localhost:11111/{}'.format(https, token)
         log.info('local url to access jupyter: {}'.format(local_url))
         # TODO allow browser selection
         webbrowser.open(local_url)
-        # TODO thread/background this?
-        log.info("Now forwarding port {} to {}:{}".format(
-            11111, config['server'], remote_port))
-        forward_tunnel(11111, 'localhost', remote_port, client.get_transport()
-                       )
+        signal.pause()
     except KeyboardInterrupt:
         client.close()
         log.warning("C-c: Port forwarding stopped.")
