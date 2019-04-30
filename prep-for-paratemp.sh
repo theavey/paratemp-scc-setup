@@ -254,7 +254,7 @@ if [[ ${START} = TRUE ]]; then
 
     # Start Jupyter and wait for it to finish
     echo Starting Jupyter lab...
-    jupyter lab 1>&1 2>&2
+    jupyter lab 1>&1 2>&1
 fi
 
 exit

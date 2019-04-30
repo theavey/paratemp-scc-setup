@@ -242,40 +242,29 @@ if __name__ == '__main__':
     scc_script_path = '.paratemp/prep-for-paratemp.sh'
 
     if not config['Setup_on_SCC']:
-        scc_setup(dry=True)
+        scc_setup(dry=False)
 
     log.info('Starting jupyter on {}'.format(config['server']))
     stdin, stdout, stderr = client.exec_command(
         './{} -s'.format(scc_script_path),
-        bufsize=8192,
-        timeout=2)
-    # print(f'type stdout: {type(stdout)}')
-    # print(f'stdout: {stdout.read()}')
-    # stdin, stdout, stderr = client.exec_command(
-    #     'echo first ; sleep 10; echo second stderr 1>&2',
-    #     timeout=2)
+        get_pty=True,  # kills command called on connection close
+        timeout=4)
     m = None
     try:
         while not m:
             data = None
             try:
-                log.debug('checking for new stderr...')
-                data = stderr.read()
+                log.debug('checking for new stdout...')
+                data = stdout.readline()
             except socket.timeout:
-                pass
+                continue
             if data is not None:
-                log.debug('stderr: {}'.format(data))
-            try:
-                log.debug('checking for new data...')
-                data = stdout.read(128)
-                log.debug(data)
-            except socket.timeout:
-                pass
+                log.debug('stdout: {}'.format(data))
             if data is not None and len(data) == 0:
                 raise ChannelClosed
             data = str(data)
             for line in data.split('\n'):
-                m = re.search(r'https?://.*?:(\d+)/(?:\?token=(\w+))?', line)
+                m = re.search(r'http(s)?://.*?:(\d+)/(?:\?token=(\w+))?', line)
                 if m is not None:
                     break
     except ChannelClosed:
@@ -284,25 +273,29 @@ if __name__ == '__main__':
                   '{}'.format(stdout.read(), stderr.read()))
         sys.exit(1)
     except KeyboardInterrupt:
+        client.close()
         log.error('KeyboardInterrupt while finding Jupyter port. stderr: '
                   '{}'.format(stderr.read()))
         sys.exit(1)
-    print(f'port: {m.group(1)}   token: {m.group(2)}')
-    # print(f'stderr: {stderr.read()}')
+    log.info('found jupyter server info: port: {}   token: {}'.format(
+        m.group(2), m.group(2)))
 
-    # TODO find port
-    remote_port = None
-    # TODO find token
+    https = m.group(1)
+    remote_port = int(m.group(2))
+    token = m.group(3)
 
     log.info("Now forwarding port {} to {}:{}".format(
         11111, config['server'], remote_port))
 
     try:
+        https = 'http' if https is None else 'https'
+        token = '' if token is None else '?token={}'.format(token)
+        local_url = '{}://localhost:11111/{}'.format(https, token)
         # TODO thread/background this?
         forward_tunnel(11111, 'localhost', remote_port, client.get_transport()
                        )
-        # TODO create local URL
         # TODO print or launch browser
     except KeyboardInterrupt:
+        client.close()
         log.warning("C-c: Port forwarding stopped.")
         sys.exit(0)
