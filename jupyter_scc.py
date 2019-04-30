@@ -39,6 +39,7 @@ except ImportError:
     import SocketServer as socketserver
 import subprocess
 import sys
+import webbrowser
 
 try:
     import paramiko
@@ -246,6 +247,7 @@ def main():
     if not config['Setup_on_SCC']:
         scc_setup(dry=False)
     log.info('Starting jupyter on {}'.format(config['server']))
+    # TODO change directory to ...?
     stdin, stdout, stderr = client.exec_command(
         './{} -s'.format(scc_script_path),
         get_pty=True,  # kills command called on connection close
@@ -282,17 +284,18 @@ def main():
     https = m.group(1)
     remote_port = int(m.group(2))
     token = m.group(3)
-    log.info("Now forwarding port {} to {}:{}".format(
-        11111, config['server'], remote_port))
     try:
         https = 'http' if https is None else 'https'
         token = '' if token is None else '?token={}'.format(token)
         local_url = '{}://localhost:11111/{}'.format(https, token)
         log.info('local url to access jupyter: {}'.format(local_url))
+        # TODO allow browser selection
+        webbrowser.open(local_url)
         # TODO thread/background this?
+        log.info("Now forwarding port {} to {}:{}".format(
+            11111, config['server'], remote_port))
         forward_tunnel(11111, 'localhost', remote_port, client.get_transport()
                        )
-        # TODO print or launch browser
     except KeyboardInterrupt:
         client.close()
         log.warning("C-c: Port forwarding stopped.")
