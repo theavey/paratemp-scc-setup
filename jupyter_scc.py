@@ -168,7 +168,8 @@ def forward_tunnel(local_port, remote_host, remote_port, transport):
         chain_port = remote_port
         ssh_transport = transport
 
-    ForwardServer(("", local_port), SubHander).serve_forever()
+    # TH edit to return this, and not serve forever
+    return ForwardServer(("", local_port), SubHander)
 
 
 #
@@ -289,9 +290,9 @@ def main():
     try:
         log.info("Now forwarding port {} to {}:{}".format(
             11111, config['server'], remote_port))
-        thread = threading.Thread(target=forward_tunnel,
-                                  args=(11111, 'localhost', remote_port,
-                                        client.get_transport()))
+        tunnel = forward_tunnel(11111, 'localhost', remote_port,
+                                client.get_transport())
+        thread = threading.Thread(target=tunnel.serve_forever)
         thread.start()
         https = 'http' if https is None else 'https'
         token = '' if token is None else '?token={}'.format(token)
@@ -301,8 +302,10 @@ def main():
         webbrowser.open(local_url)
         signal.pause()
     except KeyboardInterrupt:
+        log.warning("C-c: Stopping port forwarding.")
+        tunnel.shutdown()
         client.close()
-        log.warning("C-c: Port forwarding stopped.")
+        thread.join()
         sys.exit(0)
 
 
