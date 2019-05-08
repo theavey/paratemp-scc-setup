@@ -130,15 +130,6 @@ if [[ $SETUP = TRUE ]]; then
         jupyterlab "blas=*=openblas" "pip>=18"
     fi
     source activate paratemp
-    # Currently need latest gromacswrapper (until 0.8+)
-    if [[ -d GromacsWrapper ]]; then
-        echo GromacsWrapper already installed
-    else
-        git clone https://github.com/Becksteinlab/GromacsWrapper.git
-        cd GromacsWrapper
-        pip install .
-        cd ..
-    fi
     pip install gromacswrapper acpype
     conda install --yes -c conda-forge --file ParaTemp/requirements.txt
     conda install ${DRY} --yes -c omnia parmed
